@@ -1,0 +1,64 @@
+﻿using MRNeural.Interface.Layer;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+
+namespace MRNeural.Infrastructure
+{
+    public class JsonNeuralConverter<T> : JsonConverter
+        where T : class, INeuralLayer, new()
+    {
+
+        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        {
+            JToken t = JToken.FromObject(value);
+
+            if (t.Type != JTokenType.Object)
+            {
+                t.WriteTo(writer);
+            }
+            else
+            {
+                JObject o = (JObject)t;
+                IList<string> propertyNames = o.Properties().Select(p => p.Name).ToList();
+
+                o.AddFirst(new JProperty("Keys", new JArray(propertyNames)));
+
+                o.WriteTo(writer);
+            }
+        }
+
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        {
+            if (reader.TokenType == JsonToken.Null)
+            {
+                return string.Empty;
+            }
+            else if (reader.TokenType == JsonToken.String)
+            {
+                return serializer.Deserialize<T>(reader);
+            }
+            else
+            {
+                JObject obj = JObject.Load(reader);
+                if (obj["Code"] != null)
+                    return obj["Code"].ToString();
+                else
+                    return serializer.Deserialize(reader, objectType);
+            }
+        }
+
+        public override bool CanWrite
+        {
+            get { return false; }
+        }
+
+        public override bool CanConvert(Type objectType)
+        {
+            return false;
+        }
+    }
+}
